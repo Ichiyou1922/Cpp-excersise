@@ -107,8 +107,14 @@ int main() {
 ```
 ```
 
-
-
-
+- 初期化子リスト
+```
+```cpp
+    Particle(double initial_x, double initial_v, double mass) x(initial_x), v(initial_v), mass(initial_mass){
+```
+```
+- この様な感じで，書く．
+- 普通の代入と違うところは，「はじめから値を持つ箱を製造する」というところ．
+- 変数生成時に値をもたせるのはC++の決まりというか思想というか．
 
 
