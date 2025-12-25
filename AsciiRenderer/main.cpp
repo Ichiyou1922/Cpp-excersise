@@ -76,10 +76,13 @@ class AsciiRenderer {
 private:
   int width, height;
   double world_scale; // 1文字が物理空間の何メートルに相当するか
+  std::vector<std::string> buffer;
 
 public:
   AsciiRenderer(int w, int h, double scale)
-      : width(w), height(h), world_scale(scale) {}
+      : width(w), height(h), world_scale(scale) {
+    buffer.resize(height, std::string(width, ' '));
+  }
 
   void render(const std::vector<Body> &bodies) {
     // 1. 画面クリア (ANSIエスケープシーケンス)
@@ -87,13 +90,23 @@ public:
     // \033[H: カーソルを左上(Home)に戻す
     std::cout << "\033[2J\033[H";
 
-    // 2. フレームバッファの準備 (空白で埋める)
-    // y座標が外側、x座標が内側の二次元配列(文字列のリスト)
-    std::vector<std::string> buffer(height, std::string(width, ' '));
+    // 2. buffer reset
+    for (auto &line : buffer) {
+      std::fill(line.begin(), line.end(), ' ');
+    }
+
+    // 1. 重心の計算
+    Vec2 center_of_mass(0, 0);
+    double total_mass = 0.0;
+    for (const auto &b : bodies) {
+      center_of_mass = center_of_mass + b.get_pos() * b.get_mass(); // m * r
+      total_mass += b.get_mass();
+    }
+    center_of_mass = center_of_mass * (1.0 / total_mass); // Σmr / Σm
 
     // 3. ラスタライズ (物体をバッファに配置)
     for (const auto &body : bodies) {
-      Vec2 pos = body.get_pos();
+      Vec2 pos = body.get_pos() - center_of_mass;
 
       // 座標変換: 物理座標(中心0,0) -> 画面座標(左上が0,0)
       // アスペクト比補正: 文字は縦長なので、x座標を広げると円に見える
@@ -104,7 +117,14 @@ public:
       if (screen_x >= 0 && screen_x < width && screen_y >= 0 &&
           screen_y < height) {
         // 太陽なら '@', それ以外(地球)なら 'O'
-        char symbol = (body.get_mass() > 100.0) ? '@' : 'O';
+        char symbol;
+        if (body.get_mass() > 800.0) {
+          symbol = '@';
+        } else if (body.get_mass() >= 500.0) {
+          symbol = '$';
+        } else {
+          symbol = 'o';
+        }
         buffer[screen_y][screen_x] = symbol;
       }
     }
@@ -118,13 +138,14 @@ public:
 
 int main() {
   double G = 1.0;
-  double t_max = 200.0;
+  double t_max = 500.0;
   double dt = 0.1;
 
   std::vector<Body> bodies;
 
   bodies.push_back(Body("Sun", 1000.0, Vec2(0.0, 0.0), Vec2(0.0, 0.0)));
   bodies.push_back(Body("Earth", 1.0, Vec2(0, 100), Vec2(3.0, 0)));
+  bodies.push_back(Body("Mars", 500.0, Vec2(-50, 50), Vec2(0, -2.0)));
 
   AsciiRenderer renderer(80, 40, 5.0);
 
